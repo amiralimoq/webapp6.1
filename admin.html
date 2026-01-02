@@ -91,11 +91,11 @@
                 </div>
             </div>
 
-            <!-- MENU MANAGEMENT SECTION (CSS Extracted) -->
+            <!-- MENU MANAGEMENT SECTION (Updated) -->
             <div id="menu-management" class="content-section">
                 <div class="flex-between-center mb-20">
                     <div class="section-title"><i class="ri-restaurant-2-line"></i> Menu Management</div>
-                    <button class="btn-add btn-sm">
+                    <button class="btn-add btn-sm" onclick="openMenuModal('add')">
                         <i class="ri-add-line"></i> Add Item
                     </button>
                 </div>
@@ -107,51 +107,12 @@
                         <span class="header-item flex-1">Category</span>
                         <span class="header-item flex-1">Price</span>
                         <span class="header-item flex-1">Status</span>
+                        <span class="header-item flex-1 text-right">Actions</span>
                     </div>
                     
-                    <!-- Item 1 -->
-                    <div class="table-row">
-                        <span class="flex-1"><div class="menu-img-box">🍔</div></span>
-                        <span class="flex-2 font-600">Royal Burger</span>
-                        <span class="flex-1 text-sm-grey">Main Course</span>
-                        <span class="flex-1 font-500">$12.50</span>
-                        <span class="flex-1"><span class="badge-status status-active">Active</span></span>
-                    </div>
-
-                    <!-- Item 2 -->
-                    <div class="table-row">
-                        <span class="flex-1"><div class="menu-img-box">🍕</div></span>
-                        <span class="flex-2 font-600">Pepperoni Pizza</span>
-                        <span class="flex-1 text-sm-grey">Main Course</span>
-                        <span class="flex-1 font-500">$15.00</span>
-                        <span class="flex-1"><span class="badge-status status-active">Active</span></span>
-                    </div>
-
-                    <!-- Item 3 -->
-                    <div class="table-row">
-                        <span class="flex-1"><div class="menu-img-box">🥗</div></span>
-                        <span class="flex-2 font-600">Caesar Salad</span>
-                        <span class="flex-1 text-sm-grey">Starters</span>
-                        <span class="flex-1 font-500">$8.00</span>
-                        <span class="flex-1"><span class="badge-status status-active">Active</span></span>
-                    </div>
-
-                    <!-- Item 4 -->
-                    <div class="table-row">
-                        <span class="flex-1"><div class="menu-img-box">🍟</div></span>
-                        <span class="flex-2 font-600">French Fries</span>
-                        <span class="flex-1 text-sm-grey">Sides</span>
-                        <span class="flex-1 font-500">$5.00</span>
-                        <span class="flex-1"><span class="badge-status status-inactive">Inactive</span></span>
-                    </div>
-
-                    <!-- Item 5 -->
-                    <div class="table-row">
-                        <span class="flex-1"><div class="menu-img-box">🥤</div></span>
-                        <span class="flex-2 font-600">Coca Cola</span>
-                        <span class="flex-1 text-sm-grey">Drinks</span>
-                        <span class="flex-1 font-500">$2.50</span>
-                        <span class="flex-1"><span class="badge-status status-active">Active</span></span>
+                    <!-- Dynamic Menu List -->
+                    <div id="menu-list-container">
+                        <!-- Populated by JS -->
                     </div>
                 </div>
             </div>
@@ -170,6 +131,7 @@
                     <div id="customer-list"></div>
                 </div>
             </div>
+
             <!-- DISCOUNTS SECTION -->
             <div id="discounts" class="content-section">
                 <div class="flex-between-center mb-20">
@@ -374,6 +336,7 @@
                     </div>
                 </div>
             </div>
+
             <!-- REVIEWS SECTION -->
             <div id="reviews" class="content-section">
                 <div class="flex-between-center mb-20">
@@ -393,7 +356,7 @@
         </main>
     </div>
 
-    <!-- PROFILE MODAL (CSS Extracted) -->
+    <!-- PROFILE MODAL -->
     <div class="modal-overlay" id="profile-modal">
         <div class="modal-content">
             <i class="ri-close-line modal-close-icon" onclick="document.getElementById('profile-modal').style.display='none'"></i>
@@ -430,6 +393,55 @@
         </div>
     </div>
     
+    <!-- MENU ITEM CREATION/EDIT MODAL (NEW) -->
+    <div class="modal-overlay" id="menu-modal">
+        <div class="modal-content">
+            <i class="ri-close-line modal-close-icon" onclick="document.getElementById('menu-modal').style.display='none'"></i>
+            <h3 id="menu-modal-title" class="mb-20">Add Menu Item</h3>
+            
+            <label class="label-sm">Category</label>
+            <select id="menu-cat" class="form-control mb-10">
+                <option value="Starters">Starters</option>
+                <option value="Main Course">Main Course</option>
+                <option value="Sides">Sides</option>
+                <option value="Drinks">Drinks</option>
+                <option value="Desserts">Desserts</option>
+            </select>
+
+            <label class="label-sm">Item Name</label>
+            <input type="text" id="menu-name" class="form-control mb-10" placeholder="e.g. Royal Burger">
+            
+            <label class="label-sm">Description</label>
+            <input type="text" id="menu-desc" class="form-control mb-10" placeholder="e.g. Beef, Cheese, Lettuce">
+
+            <label class="label-sm">Price ($)</label>
+            <input type="number" id="menu-price" class="form-control mb-10" placeholder="0.00">
+            
+            <label class="label-sm">Upload Photo</label>
+            <input type="file" id="menu-img" class="form-control mb-20">
+            
+            <button class="btn-add" id="save-menu-btn" onclick="saveMenuItem()">Confirm</button>
+        </div>
+    </div>
+
+    <!-- MENU PREVIEW MODAL (NEW) -->
+    <div class="modal-overlay" id="menu-preview-modal">
+        <div style="position:relative;">
+            <i class="ri-close-line modal-close-icon" style="color:white; top:-30px; right:0;" onclick="document.getElementById('menu-preview-modal').style.display='none'"></i>
+            <div class="preview-card">
+                <img id="prev-img" class="preview-img" src="">
+                <div class="preview-body">
+                    <div class="preview-title" id="prev-name">Item Name</div>
+                    <div class="preview-desc" id="prev-desc">Description goes here...</div>
+                    <div class="preview-footer">
+                        <div class="preview-price" id="prev-price">$0.00</div>
+                        <button class="preview-btn"><i class="ri-add-line"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- DISCOUNT REPORT MODAL -->
     <div class="modal-overlay" id="discount-report-modal">
         <div class="modal-content">
