@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(window.innerWidth < 768) toggleSidebar();
             
             if(targetId === 'dashboard') initDashboard();
+            if(targetId === 'menu-management') loadMenuItems(); // Load Menu
             if(targetId === 'customers') loadAllCustomers();
             if(targetId === 'sales') quickReport(30);
             if(targetId === 'users') loadStaffList();
@@ -33,6 +34,145 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.querySelector('.sidebar').classList.toggle('active');
         document.querySelector('.sidebar-overlay').classList.toggle('active');
     }
+
+    // ==========================================
+    // MENU MANAGEMENT (NEW LOGIC)
+    // ==========================================
+    let editingMenuId = null;
+
+    window.openMenuModal = function(mode, dataJson = null) {
+        document.getElementById('menu-modal').style.display = 'flex';
+        const titleEl = document.getElementById('menu-modal-title');
+        const btnEl = document.getElementById('save-menu-btn');
+        
+        if (mode === 'add') {
+            editingMenuId = null;
+            titleEl.innerText = 'Add Menu Item';
+            btnEl.innerText = 'Confirm';
+            // Clear inputs
+            document.getElementById('menu-cat').value = 'Main Course';
+            document.getElementById('menu-name').value = '';
+            document.getElementById('menu-desc').value = '';
+            document.getElementById('menu-price').value = '';
+            document.getElementById('menu-img').value = ''; 
+        } else {
+            // Edit Mode
+            editingMenuId = dataJson.id;
+            titleEl.innerText = 'Edit Menu Item';
+            btnEl.innerText = 'Update';
+            
+            document.getElementById('menu-cat').value = dataJson.category;
+            document.getElementById('menu-name').value = dataJson.name;
+            document.getElementById('menu-desc').value = dataJson.description;
+            document.getElementById('menu-price').value = dataJson.price;
+            // Note: File input cannot be pre-filled for security, user re-uploads if changing.
+        }
+    }
+
+    window.saveMenuItem = async function() {
+        const category = document.getElementById('menu-cat').value;
+        const name = document.getElementById('menu-name').value;
+        const desc = document.getElementById('menu-desc').value;
+        const price = parseFloat(document.getElementById('menu-price').value);
+        const imgInput = document.getElementById('menu-img');
+        
+        if (!name || !price) return alert("Name and Price are required.");
+
+        let imgData = null;
+        if (imgInput.files && imgInput.files[0]) {
+            // Convert to Base64 for demo storage
+            imgData = await toBase64(imgInput.files[0]);
+        }
+
+        const payload = {
+            category,
+            name,
+            description: desc,
+            price,
+            status: editingMenuId ? undefined : 'active' // Default active for new
+        };
+        if (imgData) payload.image_url = imgData; // Update image only if new one selected
+
+        if (editingMenuId) {
+            // Update
+            const { error } = await supabaseClient.from('menu_items').update(payload).eq('id', editingMenuId);
+            if(error) alert("Error updating: " + error.message);
+            else { alert("Updated!"); document.getElementById('menu-modal').style.display = 'none'; loadMenuItems(); }
+        } else {
+            // Insert
+            const { error } = await supabaseClient.from('menu_items').insert([payload]);
+            if(error) alert("Error creating: " + error.message);
+            else { alert("Created!"); document.getElementById('menu-modal').style.display = 'none'; loadMenuItems(); }
+        }
+    }
+
+    window.loadMenuItems = async function() {
+        const container = document.getElementById('menu-list-container');
+        container.innerHTML = 'Loading...';
+
+        const { data, error } = await supabaseClient.from('menu_items').select('*').order('created_at', {ascending: false});
+        
+        if (error || !data || data.length === 0) {
+            container.innerHTML = '<div style="padding:15px;color:#888;">No items found.</div>';
+            return;
+        }
+
+        container.innerHTML = '';
+        data.forEach(item => {
+            const jsonItem = JSON.stringify(item).replace(/"/g, '&quot;');
+            
+            // Status Logic
+            const isActive = item.status === 'active';
+            const statusClass = isActive ? 'status-active' : 'status-inactive';
+            const statusLabel = isActive ? 'Active' : 'Inactive';
+            const statusBtnHtml = `<span class="status-toggle-btn ${statusClass}" onclick="toggleMenuStatus(${item.id}, '${item.status}')">${statusLabel}</span>`;
+
+            // Image Logic
+            const imgHtml = item.image_url 
+                ? `<img src="${item.image_url}" style="width:100%; height:100%; object-fit:cover;">` 
+                : `<i class="ri-image-2-line" style="font-size:20px; color:#ccc;"></i>`;
+
+            const row = document.createElement('div');
+            row.className = 'table-row';
+            row.innerHTML = `
+                <span class="flex-1"><div class="menu-img-box">${imgHtml}</div></span>
+                <span class="flex-2 font-600">${item.name}</span>
+                <span class="flex-1 text-sm-grey">${item.category}</span>
+                <span class="flex-1 font-500">$${item.price}</span>
+                <span class="flex-1">${statusBtnHtml}</span>
+                <span class="flex-1 text-right" style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button onclick="openMenuPreview(${jsonItem})" style="background:none; border:none; color:#3498DB; cursor:pointer;" title="View"><i class="ri-eye-line" style="font-size:18px;"></i></button>
+                    <button onclick="openMenuModal('edit', ${jsonItem})" style="background:none; border:none; color:#F39C12; cursor:pointer;" title="Edit"><i class="ri-pencil-line" style="font-size:18px;"></i></button>
+                </span>
+            `;
+            container.appendChild(row);
+        });
+    }
+
+    window.toggleMenuStatus = async function(id, currentStatus) {
+        const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+        await supabaseClient.from('menu_items').update({ status: newStatus }).eq('id', id);
+        loadMenuItems(); // Refresh list
+    }
+
+    window.openMenuPreview = function(item) {
+        document.getElementById('prev-name').innerText = item.name;
+        document.getElementById('prev-desc').innerText = item.description || 'No description.';
+        document.getElementById('prev-price').innerText = '$' + item.price;
+        const imgEl = document.getElementById('prev-img');
+        if (item.image_url) imgEl.src = item.image_url;
+        else imgEl.src = ''; 
+        
+        document.getElementById('menu-preview-modal').style.display = 'flex';
+    }
+
+    // Helper: File to Base64
+    const toBase64 = file => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
 
     // --- TEMPLATES LOGIC ---
     async function loadCurrentTheme() {
@@ -139,6 +279,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderU(c,d,t){ c.innerHTML=''; if(d)d.forEach(u=>{ const div=document.createElement('div'); div.className='table-row'; div.innerHTML=`<span style="flex:1;font-weight:500;">${u.username}</span><span style="flex:1;text-align:right;"><button onclick="changePass('${t}',${u.id})" style="background:none;border:none;color:#F39C12;cursor:pointer;margin-right:10px;">Pass</button><button onclick="deleteUser('${t}',${u.id})" style="background:none;border:none;color:#E74C3C;cursor:pointer;">Delete</button></span>`; c.appendChild(div); }); }
     window.changePass=async(t,id)=>{ const p=prompt('New Pass:'); if(p)await supabaseClient.from(t).update({password:p}).eq('id',id); }
     window.deleteUser=async(t,id)=>{ if(confirm('Delete?')){ await supabaseClient.from(t).delete().eq('id',id); if(t==='staff')loadStaffList(); else loadAdminList(); } }
+
     // --- REVIEWS & MESSAGES ---
     let notif=false,sound=true;
     window.toggleNotifSetting=()=>{ notif=!notif; document.getElementById('notif-state').innerText=notif?'ON':'OFF'; document.getElementById('sound-btn').style.display=notif?'flex':'none'; }
